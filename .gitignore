@@ -1,0 +1,11 @@
+node_modules
+.run
+dist
+.env
+*.db
+*.db-journal
+.DS_Store
+.output
+.vinxi
+.cache
+.wrangler
