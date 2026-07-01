@@ -1,26 +1,29 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { getCurrentUser } from '../lib/auth-actions'
-import { getAvailableBounties, claimBounty, getClaimedConsultation, submitResponse } from '../lib/consultation-actions'
-import { Video, Clock, DollarSign, AlertCircle, CheckCircle2, Loader2, PlayCircle, ClipboardList, Send } from 'lucide-react'
+import { getAvailableBounties, claimBounty, getClaimedConsultation, submitResponse, getExpertEarnings } from '../lib/consultation-actions'
+import { Video, Clock, DollarSign, AlertCircle, CheckCircle2, Loader2, PlayCircle, ClipboardList, Send, Wallet, History, ArrowRight } from 'lucide-react'
 
 export const Route = createFileRoute('/expert/dashboard')({
   loader: async () => {
     const user = await getCurrentUser()
     if (!user || user.role !== 'expert') {
-      return { user: null, availableBounties: [] }
+      return { user: null, availableBounties: [], earningsData: null }
     }
     const availableBounties = await getAvailableBounties()
-    return { user, availableBounties }
+    const earningsData = await getExpertEarnings()
+    return { user, availableBounties, earningsData }
   },
   component: ExpertDashboardComponent,
 })
 
 function ExpertDashboardComponent() {
-  const { user, availableBounties: initialBounties } = Route.useLoaderData()
+  const { user, availableBounties: initialBounties, earningsData: initialEarnings } = Route.useLoaderData()
   const navigate = useNavigate()
   
+  const [view, setView] = useState<'bounties' | 'earnings'>('bounties')
   const [availableBounties, setAvailableBounties] = useState(initialBounties)
+  const [earningsData, setEarningsData] = useState(initialEarnings)
   const [claimedBounty, setClaimedBounty] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,8 +47,13 @@ function ExpertDashboardComponent() {
   const handleRefresh = async () => {
     setLoading(true)
     try {
-      const res = await getAvailableBounties()
-      setAvailableBounties(res)
+      if (view === 'bounties') {
+        const res = await getAvailableBounties()
+        setAvailableBounties(res)
+      } else {
+        const res = await getExpertEarnings()
+        setEarningsData(res)
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -129,6 +137,9 @@ function ExpertDashboardComponent() {
       setClaimedBounty(null)
       setVideoData(null)
       setNotes('')
+      // Refresh earnings too if they were on that tab or going there
+      const newEarnings = await getExpertEarnings()
+      setEarningsData(newEarnings)
       handleRefresh()
     } catch (err: any) {
       setError(err.message)
@@ -146,14 +157,33 @@ function ExpertDashboardComponent() {
           <h1 className="text-3xl font-extrabold text-gray-900 sm:truncate">Expert Dashboard</h1>
           <p className="mt-1 text-sm text-gray-500">Welcome back, {user.name}. Browse and solve problems.</p>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
+        <div className="mt-4 flex gap-3 md:ml-4 md:mt-0">
+          <nav className="flex rounded-lg shadow-sm" aria-label="Tabs">
+            <button
+              onClick={() => setView('bounties')}
+              className={`rounded-l-lg border border-gray-300 px-4 py-2 text-sm font-medium ${
+                view === 'bounties' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Bounties
+            </button>
+            <button
+              onClick={() => setView('earnings')}
+              className={`rounded-r-lg border-y border-r border-gray-300 px-4 py-2 text-sm font-medium ${
+                view === 'earnings' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Earnings
+            </button>
+          </nav>
           <button
             type="button"
             onClick={handleRefresh}
             disabled={loading}
             className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
           >
-            Refresh Feed
+            <Clock className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
         </div>
       </div>
@@ -265,7 +295,7 @@ function ExpertDashboardComponent() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : view === 'bounties' ? (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Available Bounties</h2>
@@ -331,7 +361,86 @@ function ExpertDashboardComponent() {
             </div>
           )}
         </div>
+      ) : (
+        <div className="space-y-8">
+          {/* Earnings Stats */}
+          <div className="grid gap-6 sm:grid-cols-3">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-green-50 p-3 text-green-600">
+                  <Wallet className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Earnings</p>
+                  <p className="text-2xl font-bold text-gray-900">${(earningsData.stats.totalEarnings / 100).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm border-l-4 border-l-amber-500">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Pending Payout</p>
+                  <p className="text-2xl font-bold text-gray-900">${(earningsData.stats.pendingPayouts / 100).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm border-l-4 border-l-indigo-500">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-indigo-50 p-3 text-indigo-600">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Paid to Date</p>
+                  <p className="text-2xl font-bold text-gray-900">${(earningsData.stats.totalPaid / 100).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Earnings History */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Earnings History
+              </h3>
+            </div>
+            <ul className="divide-y divide-gray-200">
+              {earningsData.earnings.length === 0 ? (
+                <li className="px-6 py-12 text-center text-gray-500">
+                  No earnings history found. Solve your first bounty to start earning!
+                </li>
+              ) : (
+                earningsData.earnings.map((e: any) => (
+                  <li key={e.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-bold text-gray-900">{e.consultation_title}</span>
+                        <span className="text-xs text-gray-500">{new Date(e.created_at).toLocaleDateString()} at {new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-gray-900">${(e.net_amount_cents / 100).toFixed(2)}</p>
+                          <p className="text-[10px] text-gray-400">Expert Net</p>
+                        </div>
+                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-bold uppercase ring-1 ring-inset ${
+                          e.status === 'paid' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-amber-50 text-amber-700 ring-amber-600/20'
+                        }`}>
+                          {e.status}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   )
 }
+

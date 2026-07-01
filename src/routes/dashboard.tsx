@@ -31,8 +31,14 @@ function DashboardComponent() {
       case 'open': return 'text-blue-600 bg-blue-50 ring-blue-500/10'
       case 'claimed': return 'text-indigo-600 bg-indigo-50 ring-indigo-500/10'
       case 'completed': return 'text-green-600 bg-green-50 ring-green-500/10'
+      case 'pending_payment': return 'text-amber-600 bg-amber-50 ring-amber-500/10'
       default: return 'text-gray-600 bg-gray-50 ring-gray-500/10'
     }
+  }
+
+  const formatStatus = (status: string) => {
+    if (status === 'pending_payment') return 'Pending Payment'
+    return status.charAt(0).toUpperCase() + status.slice(1)
   }
 
   return (
@@ -80,7 +86,7 @@ function DashboardComponent() {
                       <div className="flex items-center gap-3">
                         <h3 className="text-sm font-bold text-gray-900">{c.title}</h3>
                         <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getStatusColor(c.status)}`}>
-                          {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+                          {formatStatus(c.status)}
                         </span>
                         {c.is_express === 1 && (
                           <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/10">
@@ -108,6 +114,13 @@ function DashboardComponent() {
                           <Play className="h-3 w-3" />
                           View Response
                         </button>
+                      ) : c.status === 'pending_payment' ? (
+                        <a 
+                          href={c.payment_url}
+                          className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-500"
+                        >
+                          Pay Now
+                        </a>
                       ) : (
                         <div className="flex flex-col items-end gap-1">
                           <span className="text-[10px] uppercase font-bold text-gray-400">Expires in</span>

@@ -77,20 +77,24 @@ export const submitConsultation = createServerFn({ method: "POST" })
     // Expires in 45 minutes
     const expiresAt = new Date(Date.now() + 45 * 60 * 1000).toISOString();
 
+    const paymentUrl = isExpress 
+      ? "https://buy.stripe.com/4gM7sN3T9gFC8vW5ByaMU01" 
+      : "https://buy.stripe.com/cNi7sN75lfBybI86FCaMU00";
+
     try {
       db.prepare(`
         INSERT INTO consultations (
           id, client_id, category_id, title, description, 
           video_url, bounty_amount, is_express, express_surcharge, 
-          status, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          status, expires_at, payment_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         consultationId, user.id, categoryId, title, description,
         videoUrl, bountyAmount, isExpress ? 1 : 0, expressSurcharge,
-        'open', expiresAt
+        'pending_payment', expiresAt, paymentUrl
       );
 
-      return { success: true, consultationId };
+      return { success: true, consultationId, paymentUrl };
     } catch (error: any) {
       console.error("Submission error:", error);
       throw new Error("Failed to submit consultation");
@@ -256,6 +260,16 @@ export const submitResponse = createServerFn({ method: "POST" })
           UPDATE consultations SET status = 'completed', completed_at = datetime('now')
           WHERE id = ?
         `).run(consultationId);
+
+        // Track earnings
+        const gross = consultation.bounty_amount;
+        const platformFee = Math.floor(gross * 0.20);
+        const net = gross - platformFee;
+        
+        db.prepare(`
+          INSERT INTO expert_earnings (id, expert_id, consultation_id, gross_amount_cents, platform_fee_cents, net_amount_cents, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        `).run(crypto.randomUUID(), user.id, consultationId, gross, platformFee, net);
       })();
 
       return { success: true, responseId };
@@ -263,4 +277,75 @@ export const submitResponse = createServerFn({ method: "POST" })
       console.error("Response submission error:", error);
       throw new Error("Failed to submit response");
     }
+  });
+
+export const getExpertEarnings = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'expert') {
+      throw new Error("Unauthorized");
+    }
+
+    const db = await getDb();
+    const earnings = db.prepare(`
+      SELECT ee.*, c.title as consultation_title
+      FROM expert_earnings ee
+      JOIN consultations c ON ee.consultation_id = c.id
+      WHERE ee.expert_id = ?
+      ORDER BY ee.created_at DESC
+    `).all(user.id);
+
+    const stats = db.prepare(`
+      SELECT 
+        SUM(net_amount_cents) as total_earnings,
+        SUM(CASE WHEN status = 'pending' THEN net_amount_cents ELSE 0 END) as pending_payouts,
+        SUM(CASE WHEN status = 'paid' THEN net_amount_cents ELSE 0 END) as total_paid
+      FROM expert_earnings
+      WHERE expert_id = ?
+    `).get(user.id) as any;
+
+    return {
+      earnings,
+      stats: {
+        totalEarnings: stats?.total_earnings || 0,
+        pendingPayouts: stats?.pending_payouts || 0,
+        totalPaid: stats?.total_paid || 0
+      }
+    };
+  });
+
+export const getPendingPayouts = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'admin') {
+      throw new Error("Unauthorized");
+    }
+
+    const db = await getDb();
+    return db.prepare(`
+      SELECT ee.*, c.title as consultation_title, u.email as expert_email, u.name as expert_name
+      FROM expert_earnings ee
+      JOIN consultations c ON ee.consultation_id = c.id
+      JOIN users u ON ee.expert_id = u.id
+      WHERE ee.status = 'pending'
+      ORDER BY ee.created_at ASC
+    `).all();
+  });
+
+export const markAsPaid = createServerFn({ method: "POST" })
+  .validator((id: string) => id)
+  .handler(async ({ data: earningsId }) => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'admin') {
+      throw new Error("Unauthorized");
+    }
+
+    const db = await getDb();
+    db.prepare(`
+      UPDATE expert_earnings 
+      SET status = 'paid', paid_at = datetime('now')
+      WHERE id = ?
+    `).run(earningsId);
+
+    return { success: true };
   });

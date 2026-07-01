@@ -121,8 +121,8 @@ function SubmitComponent() {
         }
       })
       
-      if (res.success) {
-        navigate({ to: '/dashboard' })
+      if (res.success && res.paymentUrl) {
+        window.location.href = res.paymentUrl
       }
     } catch (err: any) {
       setError(err.message || "Failed to submit problem")

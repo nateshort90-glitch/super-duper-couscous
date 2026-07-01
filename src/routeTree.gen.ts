@@ -15,7 +15,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ExpertsRouteImport } from './routes/experts'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PaymentSuccessRouteImport } from './routes/payment.success'
 import { Route as ExpertDashboardRouteImport } from './routes/expert.dashboard'
+import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 
 const SubmitRoute = SubmitRouteImport.update({
   id: '/submit',
@@ -47,9 +49,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PaymentSuccessRoute = PaymentSuccessRouteImport.update({
+  id: '/payment/success',
+  path: '/payment/success',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExpertDashboardRoute = ExpertDashboardRouteImport.update({
   id: '/expert/dashboard',
   path: '/expert/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/admin/payouts',
+  path: '/admin/payouts',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -60,7 +72,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/submit': typeof SubmitRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/expert/dashboard': typeof ExpertDashboardRoute
+  '/payment/success': typeof PaymentSuccessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,7 +83,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/submit': typeof SubmitRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/expert/dashboard': typeof ExpertDashboardRoute
+  '/payment/success': typeof PaymentSuccessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -79,7 +95,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/submit': typeof SubmitRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/expert/dashboard': typeof ExpertDashboardRoute
+  '/payment/success': typeof PaymentSuccessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,7 +108,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/submit'
+    | '/admin/payouts'
     | '/expert/dashboard'
+    | '/payment/success'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -99,7 +119,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/submit'
+    | '/admin/payouts'
     | '/expert/dashboard'
+    | '/payment/success'
   id:
     | '__root__'
     | '/'
@@ -108,7 +130,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/submit'
+    | '/admin/payouts'
     | '/expert/dashboard'
+    | '/payment/success'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -118,7 +142,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   SubmitRoute: typeof SubmitRoute
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
   ExpertDashboardRoute: typeof ExpertDashboardRoute
+  PaymentSuccessRoute: typeof PaymentSuccessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -165,11 +191,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/payment/success': {
+      id: '/payment/success'
+      path: '/payment/success'
+      fullPath: '/payment/success'
+      preLoaderRoute: typeof PaymentSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/expert/dashboard': {
       id: '/expert/dashboard'
       path: '/expert/dashboard'
       fullPath: '/expert/dashboard'
       preLoaderRoute: typeof ExpertDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/admin/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -182,7 +222,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   SubmitRoute: SubmitRoute,
+  AdminPayoutsRoute: AdminPayoutsRoute,
   ExpertDashboardRoute: ExpertDashboardRoute,
+  PaymentSuccessRoute: PaymentSuccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
