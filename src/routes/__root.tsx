@@ -34,7 +34,7 @@ function RootComponent() {
               </Link>
               <nav className="hidden md:ml-10 md:flex md:gap-6">
                 <Link to="/submit" className="text-sm font-medium text-gray-600 hover:text-indigo-600">Get Help</Link>
-                <Link to="/expert/dashboard" className="text-sm font-medium text-gray-600 hover:text-indigo-600">For Experts</Link>
+                <Link to="/experts" className="text-sm font-medium text-gray-600 hover:text-indigo-600">For Experts</Link>
               </nav>
             </div>
             <div className="flex items-center gap-4">

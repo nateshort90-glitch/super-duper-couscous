@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { hashPassword, comparePassword, createToken, getAuthCookie } from "./auth.server";
 
 export const registerUser = createServerFn({ method: "POST" })
@@ -12,22 +13,23 @@ export const registerUser = createServerFn({ method: "POST" })
     const { getDb, seedCategories } = await import("./db.server");
     const db = await getDb();
     const { email, password, name, role, categoryIds } = data;
+    console.log("Registering user:", email, role);
     
-    // Initialize DB categories if they don't exist
     try {
       await seedCategories();
     } catch (e) {
       console.error("Failed to seed categories:", e);
     }
 
-    // Check if user exists
     const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
     if (existingUser) {
+      console.log("User already exists:", email);
       throw new Error("User already exists");
     }
 
     const userId = crypto.randomUUID();
     const hashedPassword = await hashPassword(password);
+    console.log("Hashed password for:", email);
 
     try {
       db.transaction(() => {
@@ -41,26 +43,20 @@ export const registerUser = createServerFn({ method: "POST" })
           }
         }
       })();
+      console.log("User inserted into DB:", userId);
 
       const token = await createToken({ userId, email, role });
       const cookie = await getAuthCookie(token);
       
-      // Try to set cookie via vinxi if available
-      try {
-        const { appendResponseHeader, getEvent } = await import("vinxi/http");
-        const event = getEvent();
-        if (event) {
-          appendResponseHeader(event, "Set-Cookie", cookie);
-        }
-      } catch (e) {
-        console.warn("Could not set cookie via vinxi:", e);
-      }
+      console.log("Setting auth cookie");
+      setResponseHeader("Set-Cookie", cookie);
       
       return { success: true, userId, token, role };
     } catch (error: any) {
       console.error("Registration error:", error);
       throw new Error(error.message || "Failed to register user");
     }
+
   });
 
 export const loginUser = createServerFn({ method: "POST" })
@@ -88,15 +84,7 @@ export const loginUser = createServerFn({ method: "POST" })
     const token = await createToken({ userId: user.id, email: user.email, role: user.role });
     const cookie = await getAuthCookie(token);
 
-    try {
-      const { appendResponseHeader, getEvent } = await import("vinxi/http");
-      const event = getEvent();
-      if (event) {
-        appendResponseHeader(event, "Set-Cookie", cookie);
-      }
-    } catch (e) {
-      console.warn("Could not set cookie via vinxi:", e);
-    }
+    setResponseHeader("Set-Cookie", cookie);
     
     return { 
       success: true, 
@@ -117,40 +105,33 @@ export const logoutUser = createServerFn({ method: "POST" })
     const { getLogoutCookie } = await import("./auth.server");
     const cookie = await getLogoutCookie();
     
-    try {
-      const { appendResponseHeader, getEvent } = await import("vinxi/http");
-      const event = getEvent();
-      if (event) {
-        appendResponseHeader(event, "Set-Cookie", cookie);
-      }
-    } catch (e) {
-      console.warn("Could not set cookie via vinxi:", e);
-    }
+    setResponseHeader("Set-Cookie", cookie);
     
     return { success: true };
   });
 
 export const getCurrentUser = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const { getEvent } = await import("vinxi/http");
-    const { getUserIdFromRequest, verifyToken } = await import("./auth.server");
-    const { getDb } = await import("./db.server");
-    const { parseCookie } = await import("cookie");
-    
-    const event = getEvent();
-    if (!event) return null;
-    
-    const cookieHeader = event.node.req.headers.cookie;
-    if (!cookieHeader) return null;
-    
-    const cookies = parseCookie(cookieHeader);
-    const token = cookies["bf_auth"];
-    if (!token) return null;
-    
-    const payload = await verifyToken(token);
-    if (!payload) return null;
-    
-    const db = await getDb();
-    const user: any = db.prepare("SELECT id, email, name, role FROM users WHERE id = ?").get(payload.userId);
-    return user || null;
+  .handler(async ({ request }) => {
+    try {
+      const { verifyToken } = await import("./auth.server");
+      const { getDb } = await import("./db.server");
+      const { parseCookie } = await import("cookie");
+      
+      const cookieHeader = request.headers.get("Cookie");
+      if (!cookieHeader) return null;
+      
+      const cookies = parseCookie(cookieHeader);
+      const token = cookies["bf_auth"];
+      if (!token) return null;
+      
+      const payload = await verifyToken(token);
+      if (!payload) return null;
+      
+      const db = await getDb();
+      const user: any = db.prepare("SELECT id, email, name, role FROM users WHERE id = ?").get(payload.userId);
+      return user || null;
+    } catch (e) {
+      console.warn("Error getting current user:", e);
+      return null;
+    }
   });

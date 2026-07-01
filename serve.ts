@@ -41,6 +41,13 @@ for (let attempt = 1; ; attempt++) {
       hostname: HOST,
       async fetch(req) {
         const { pathname } = new URL(req.url);
+
+        // Serve shared uploads
+        if (pathname.startsWith("/uploads/")) {
+          const file = Bun.file("/home/team/shared" + pathname);
+          if (await file.exists()) return new Response(file);
+        }
+
         if (pathname !== "/") {
           const file = Bun.file(CLIENT_DIR + pathname);
           if (await file.exists()) return new Response(file);

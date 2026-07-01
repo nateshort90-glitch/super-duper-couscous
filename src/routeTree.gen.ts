@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubmitRouteImport } from './routes/submit'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ExpertsRouteImport } from './routes/experts'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExpertDashboardRouteImport } from './routes/expert.dashboard'
@@ -29,6 +30,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpertsRoute = ExpertsRouteImport.update({
+  id: '/experts',
+  path: '/experts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -50,6 +56,7 @@ const ExpertDashboardRoute = ExpertDashboardRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/experts': typeof ExpertsRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/submit': typeof SubmitRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/experts': typeof ExpertsRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/submit': typeof SubmitRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/experts': typeof ExpertsRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/submit': typeof SubmitRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/experts'
     | '/login'
     | '/register'
     | '/submit'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/experts'
     | '/login'
     | '/register'
     | '/submit'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/experts'
     | '/login'
     | '/register'
     | '/submit'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  ExpertsRoute: typeof ExpertsRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   SubmitRoute: typeof SubmitRoute
@@ -131,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/experts': {
+      id: '/experts'
+      path: '/experts'
+      fullPath: '/experts'
+      preLoaderRoute: typeof ExpertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  ExpertsRoute: ExpertsRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   SubmitRoute: SubmitRoute,
