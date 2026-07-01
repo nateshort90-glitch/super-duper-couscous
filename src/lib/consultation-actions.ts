@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "./db.server";
 import { getCurrentUser } from "./auth-actions";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
 
 export const submitConsultation = createServerFn({ method: "POST" })
   .validator((data: any) => {
@@ -21,22 +19,57 @@ export const submitConsultation = createServerFn({ method: "POST" })
     const db = await getDb();
 
     const consultationId = crypto.randomUUID();
-    const uploadDir = "/home/team/shared/uploads";
     
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (e) {
-      // ignore
-    }
-
-    const videoFilename = `${consultationId}.webm`;
-    const videoPath = join(uploadDir, videoFilename);
-    const videoUrl = `/uploads/${videoFilename}`; 
-
-    // Handle base64 video data
+    // Handle api.video upload
+    const apiKey = process.env.API_VIDEO_API_KEY;
     const base64Data = videoData.split(",")[1] || videoData;
     const buffer = Buffer.from(base64Data, "base64");
-    await writeFile(videoPath, buffer);
+    
+    let videoUrl = "";
+    try {
+      // 1. Create video container
+      const createRes = await fetch("https://ws.api.video/videos", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: title,
+          description: description
+        })
+      });
+      
+      if (!createRes.ok) {
+        throw new Error(`api.video create failed: ${await createRes.text()}`);
+      }
+      
+      const videoObj = await createRes.json();
+      const videoId = videoObj.videoId;
+      
+      // 2. Upload source
+      const formData = new FormData();
+      const blob = new Blob([buffer], { type: "video/webm" });
+      formData.append("file", blob, "video.webm");
+      
+      const uploadRes = await fetch(`https://ws.api.video/videos/${videoId}/source`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: formData
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`api.video upload failed: ${await uploadRes.text()}`);
+      }
+      
+      const finalVideoObj = await uploadRes.json();
+      videoUrl = finalVideoObj.assets.player;
+    } catch (uploadError: any) {
+      console.error("api.video error:", uploadError);
+      throw new Error("Failed to host video. Please try again.");
+    }
 
     const bountyAmount = isExpress ? 2500 : 1000;
     const expressSurcharge = isExpress ? 1000 : 0;
