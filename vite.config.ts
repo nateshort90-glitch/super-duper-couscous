@@ -4,6 +4,8 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 export default defineConfig({
   server: {
     port: 3000,
@@ -13,12 +15,11 @@ export default defineConfig({
     // rejects a proxied request with "Blocked request".
     allowedHosts: true,
   },
-  plugins: [
-    tailwindcss(),
-    tsConfigPaths({
-      projects: ["./tsconfig.json"],
-    }),
-    tanstackStart(),
-    viteReact(),
-  ],
+  plugins: [tailwindcss(), tsConfigPaths({
+    projects: ["./tsconfig.json"],
+  }), tanstackStart(), viteReact(), cloudflare({
+    viteEnvironment: {
+      name: "ssr"
+    }
+  })],
 });
