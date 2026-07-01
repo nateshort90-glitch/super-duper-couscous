@@ -110,13 +110,52 @@ export const getUserConsultations = createServerFn({ method: "GET" })
 
     const db = await getDb();
     return db.prepare(`
-      SELECT c.*, cat.name as category_name, r.video_url as response_video_url, r.notes as response_notes
+      SELECT c.*, cat.name as category_name, r.video_url as response_video_url, r.notes as response_notes,
+             rat.score as rating_score, rat.feedback as rating_feedback
       FROM consultations c
       JOIN categories cat ON c.category_id = cat.id
       LEFT JOIN responses r ON c.id = r.consultation_id
+      LEFT JOIN ratings rat ON c.id = rat.consultation_id
       WHERE c.client_id = ?
       ORDER BY c.created_at DESC
     `).all(user.id);
+  });
+
+export const submitRating = createServerFn({ method: "POST" })
+  .validator((data: any) => {
+    if (!data.consultationId || !data.score) {
+      throw new Error("Missing required fields");
+    }
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const user = await getCurrentUser();
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+
+    const { consultationId, score, feedback } = data;
+    const db = await getDb();
+
+    // Verify consultation is completed and belongs to user
+    const consultation: any = db.prepare("SELECT * FROM consultations WHERE id = ? AND client_id = ? AND status = 'completed'").get(consultationId, user.id);
+    if (!consultation) {
+      throw new Error("Consultation not found, not completed, or not yours");
+    }
+
+    // Check if already rated
+    const existing: any = db.prepare("SELECT id FROM ratings WHERE consultation_id = ?").get(consultationId);
+    if (existing) {
+      throw new Error("Consultation already rated");
+    }
+
+    const ratingId = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO ratings (id, consultation_id, client_id, expert_id, score, feedback)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(ratingId, consultationId, user.id, consultation.expert_id, score, feedback || "");
+
+    return { success: true, ratingId };
   });
 
 export const getAvailableBounties = createServerFn({ method: "GET" })

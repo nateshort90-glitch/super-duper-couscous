@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { getCurrentUser } from '../lib/auth-actions'
-import { getUserConsultations } from '../lib/consultation-actions'
-import { Plus, Clock, CheckCircle, AlertCircle, Video, Play, MessageSquare, X } from 'lucide-react'
+import { getUserConsultations, submitRating } from '../lib/consultation-actions'
+import { Plus, Clock, CheckCircle, AlertCircle, Video, Play, MessageSquare, X, Star, Loader2 } from 'lucide-react'
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardComponent,
@@ -14,9 +14,16 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function DashboardComponent() {
-  const { user, consultations } = Route.useLoaderData()
+  const { user, consultations: initialConsultations } = Route.useLoaderData()
   const navigate = useNavigate()
+  const [consultations, setConsultations] = useState(initialConsultations)
   const [selectedResponse, setSelectedResponse] = useState<any>(null)
+  
+  // Rating state
+  const [ratingScore, setRatingScore] = useState(0)
+  const [ratingFeedback, setRatingFeedback] = useState('')
+  const [submittingRating, setSubmittingRating] = useState(false)
+  const [ratingError, setRatingError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -25,6 +32,37 @@ function DashboardComponent() {
   }, [user, navigate])
 
   if (!user) return null
+
+  const handleRefresh = async () => {
+    const res = await getUserConsultations()
+    setConsultations(res)
+  }
+
+  const handleSubmitRating = async () => {
+    if (ratingScore === 0) return
+    setSubmittingRating(true)
+    setRatingError(null)
+    try {
+      await submitRating({
+        data: {
+          consultationId: selectedResponse.id,
+          score: ratingScore,
+          feedback: ratingFeedback
+        }
+      })
+      // Update local state
+      setConsultations(prev => prev.map(c => 
+        c.id === selectedResponse.id 
+          ? { ...c, rating_score: ratingScore, rating_feedback: ratingFeedback } 
+          : c
+      ))
+      setSelectedResponse(prev => ({ ...prev, rating_score: ratingScore, rating_feedback: ratingFeedback }))
+    } catch (err: any) {
+      setRatingError(err.message)
+    } finally {
+      setSubmittingRating(false)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -107,13 +145,26 @@ function DashboardComponent() {
                     
                     <div className="flex flex-col items-end gap-4">
                       {c.status === 'completed' ? (
-                        <button 
-                          onClick={() => setSelectedResponse(c)}
-                          className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                        >
-                          <Play className="h-3 w-3" />
-                          View Response
-                        </button>
+                        <div className="flex flex-col items-end gap-2">
+                          <button 
+                            onClick={() => {
+                              setSelectedResponse(c)
+                              setRatingScore(c.rating_score || 0)
+                              setRatingFeedback(c.rating_feedback || '')
+                            }}
+                            className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                          >
+                            <Play className="h-3 w-3" />
+                            View Response
+                          </button>
+                          {c.rating_score > 0 && (
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={`h-3 w-3 ${i < c.rating_score ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ) : c.status === 'pending_payment' ? (
                         <a 
                           href={c.payment_url}
@@ -148,7 +199,7 @@ function DashboardComponent() {
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
               <div className="aspect-video bg-black rounded-xl overflow-hidden">
                 <video src={selectedResponse.response_video_url} controls autoPlay className="w-full h-full" />
               </div>
@@ -160,6 +211,62 @@ function DashboardComponent() {
                     {selectedResponse.response_notes || "No additional notes provided."}
                   </p>
                 </div>
+              </div>
+
+              {/* Rating Section */}
+              <div className="border-t pt-6">
+                <h4 className="text-sm font-bold text-gray-900 mb-4">Rate this Diagnosis</h4>
+                
+                {selectedResponse.rating_score > 0 ? (
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`h-4 w-4 ${i < selectedResponse.rating_score ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                      <span className="text-sm font-bold text-green-700">Thank you for your feedback!</span>
+                    </div>
+                    {selectedResponse.rating_feedback && (
+                      <p className="text-sm text-green-800 italic">"{selectedResponse.rating_feedback}"</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <button
+                          key={score}
+                          onClick={() => setRatingScore(score)}
+                          className="p-1 transition-transform hover:scale-110"
+                        >
+                          <Star className={`h-8 w-8 ${score <= ratingScore ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      placeholder="Optional feedback for the expert..."
+                      rows={2}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      value={ratingFeedback}
+                      onChange={e => setRatingFeedback(e.target.value)}
+                    />
+                    {ratingError && (
+                      <div className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {ratingError}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleSubmitRating}
+                      disabled={ratingScore === 0 || submittingRating}
+                      className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
+                    >
+                      {submittingRating && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Submit Rating
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-4 border-t bg-gray-50 flex justify-end">
@@ -176,3 +283,4 @@ function DashboardComponent() {
     </div>
   )
 }
+
