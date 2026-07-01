@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { registerUser, getCategories } from '../lib/auth-actions'
+import { CheckCircle2 } from 'lucide-react'
 
 export const Route = createFileRoute('/register')({
   component: RegisterComponent,
@@ -136,24 +137,39 @@ function RegisterComponent() {
           </div>
 
           {role === 'expert' && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Select your expertise categories:</label>
-              <div className="grid grid-cols-2 gap-2">
-                {categories.map((cat: any) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => toggleCategory(cat.id)}
-                    className={`rounded-md border p-2 text-xs transition-colors ${
-                      selectedCategories.includes(cat.id)
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-indigo-300'
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+            <div className="space-y-4">
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-sm font-semibold text-gray-900">Expertise & Specialization</label>
+                <p className="text-xs text-gray-500 mb-4">Select all categories you are licensed or certified to provide diagnosis for.</p>
               </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {categories.map((cat: any) => {
+                  const isSelected = selectedCategories.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleCategory(cat.id)}
+                      className={`relative flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
+                          : 'border-gray-200 bg-white hover:border-indigo-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                        <CheckCircle2 className={`h-5 w-5 ${isSelected ? 'block' : 'hidden'}`} />
+                        {!isSelected && <div className="h-2 w-2 rounded-full bg-gray-300" />}
+                      </div>
+                      <span className={`text-xs font-medium ${isSelected ? 'text-indigo-900' : 'text-gray-700'}`}>
+                        {cat.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedCategories.length === 0 && (
+                <p className="text-[10px] text-orange-600 font-medium italic">Please select at least one category to continue.</p>
+              )}
             </div>
           )}
 
